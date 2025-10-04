@@ -243,15 +243,12 @@ class MedNeXtEncoderBlock(nn.Module):
         x = self.down_block(x)
 
         return x, skip_features
-    
 
-
-class DecoderBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, skip_channels=None,
-                 exp_r=4, kernel_size=3, norm_type='group'):
-        super(DecoderBlock, self).__init__()
-        self.skip_channels = skip_channels
-
+class MedNeXtDecoderBlock(nn.Module):
+    def __init__(self, in_channels, out_channels, skip_channels,
+                 exp_r=4, kernel_size=3, do_res=True, norm_type='group'):
+        super(MedNeXtDecoderBlock, self).__init__()
+        
         self.up_block = MedNeXtUpBlock(
             in_channels=in_channels,
             out_channels=out_channels,
@@ -260,44 +257,44 @@ class DecoderBlock(nn.Module):
             do_res=False,
             norm_type=norm_type
         )
+        
+        self.skip_proj = nn.Conv3d(skip_channels, out_channels, kernel_size=1)
 
-        if skip_channels is not None:
-
-            groups = min(8, out_channels) if out_channels >= 8 else out_channels
-            
-            self.skip_conv = nn.Sequential(
-                nn.Conv3d(skip_channels, out_channels, kernel_size=1),
-                nn.GroupNorm(groups, out_channels),
-                nn.ReLU(inplace=True)
-            )
-
-            combine_groups = min(8, out_channels) if out_channels >= 8 else out_channels
-            self.combine_conv = nn.Sequential(      
-                nn.Conv3d(out_channels * 2, out_channels, kernel_size=3, padding=1),
-                nn.GroupNorm(combine_groups, out_channels),
-                nn.ReLU(inplace=True)
-            )
-            
-        else:
-            self.skip_conv = None
-            self.combine_conv = None
-
-    def forward(self, x, skip_features=None, use_skip=True):
+        self.mednext_block_1 = MedNeXtBlock(
+            in_channels=out_channels,
+            out_channels=out_channels,
+            exp_r=exp_r,
+            kernel_size=kernel_size,
+            do_res=do_res,
+            norm_type=norm_type,
+            n_groups=None
+        )
+        
+        self.mednext_block_2 = MedNeXtBlock(
+            in_channels=out_channels,
+            out_channels=out_channels,
+            exp_r=exp_r,
+            kernel_size=kernel_size,
+            do_res=do_res,
+            norm_type=norm_type,
+            n_groups=None
+        )
+    
+    def forward(self, x, skip_features):
         x = self.up_block(x)
-
-        if use_skip and skip_features is not None and self.skip_channels is not None:
-
-            skip = self.skip_conv(skip_features)
-
-            if x.shape[2:] != skip.shape[2:]:
-                skip = torch.nn.functional.interpolate(
-                    skip,
-                    size=x.shape[2:],
-                    mode='trilinear',
-                    align_corners=False
-                )
-
-            x = torch.cat([x, skip], dim=1)
-            x = self.combine_conv(x)
-
+        skip = self.skip_proj(skip_features)
+        
+        # if x.shape[2:] != skip.shape[2:]:
+        #    skip = torch.nn.functional.interpolate(
+        #        skip,
+        #        size=x.shape[2:],
+        #        mode='trilinear',
+        #        align_corners=False
+        #    )
+        
+        x = x + skip
+        x = self.mednext_block_1(x)
+        x = self.mednext_block_2(x)
+        
         return x
+# Better Decoder ..
