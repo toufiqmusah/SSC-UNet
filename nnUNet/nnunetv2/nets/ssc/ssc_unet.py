@@ -1,3 +1,4 @@
+"""ssc_unet.py"""
 from __future__ import annotations
 
 import torch
@@ -8,15 +9,6 @@ from mamba_ssm import Mamba
 from nnunet_mednext import MedNeXtBlock, MedNeXtDownBlock, MedNeXtUpBlock
 
 from norm_fix import ensure_mednext_norms
-
-class OutBlock(nn.Module):
-    """Simple output block for segmentation"""
-    def __init__(self, in_channels, out_channels):
-        super().__init__()
-        self.conv = nn.Conv3d(in_channels, out_channels, kernel_size=1)
-
-    def forward(self, x):
-        return self.conv(x)
 
 
 class MambaLayer(nn.Module):
@@ -66,7 +58,6 @@ class GSC(nn.Module):
     def __init__(self, in_channels):
         super().__init__()
         
-        # All blocks should work with the same in_channels
         self.block1 = MedNeXtBlock(
             in_channels=in_channels,
             out_channels=in_channels,
@@ -178,7 +169,7 @@ class MambaEncoder(nn.Module):
 
 
 class MedNeXtEncoderStage(nn.Module):
-    """Single MedNeXt encoder stage with optional downsampling"""
+    """Single MedNeXt, Optional Downsampling"""
     def __init__(self, in_channels, out_channels, depth=2, exp_r=2,
                  norm_type='instance', downsample=False):
         super().__init__()
@@ -220,7 +211,7 @@ class MedNeXtEncoderStage(nn.Module):
 
 
 class MedNeXtDecoderStage(nn.Module):
-    """Single MedNeXt decoder stage"""
+    """Single MedNeXt Decoder Stage"""
     def __init__(self, in_channels, out_channels, skip_channels, depth=2,
                  exp_r=2, norm_type='instance'):
         super().__init__()
@@ -233,7 +224,7 @@ class MedNeXtDecoderStage(nn.Module):
             norm_type=norm_type
         )
 
-        # Project skip connection to match decoder channels
+        # project skip connection to match decoder channels
         self.skip_proj = nn.Conv3d(skip_channels, out_channels, kernel_size=1)
 
         self.blocks = nn.ModuleList()
@@ -259,6 +250,13 @@ class MedNeXtDecoderStage(nn.Module):
 
         return x
 
+class OutBlock(nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super().__init__()
+        self.conv = nn.Conv3d(in_channels, out_channels, kernel_size=1)
+
+    def forward(self, x):
+        return self.conv(x)
 
 class SSC_UNet(nn.Module):
     def __init__(
@@ -283,7 +281,6 @@ class SSC_UNet(nn.Module):
         self.norm_type = norm_type
         self.exp_r = exp_r
 
-        # === Mamba Encoder (feature extraction) ===
         self.mamba_encoder = MambaEncoder(
             in_chans=in_chans,
             depths=depths,
@@ -292,24 +289,40 @@ class SSC_UNet(nn.Module):
             layer_scale_init_value=layer_scale_init_value,
         )
 
-        # === MedNeXt Encoder #1: Processes Mamba features WITHOUT downsampling ===
+        # MedNeXt Encoder 1 – Processes Mamba features w/o downsampling
         # Stage 0
-        self.mednext1_stage0_block1 = MedNeXtBlock(feat_size[0], feat_size[0], norm_type=norm_type, kernel_size=3, exp_r=exp_r, do_res=True)
-        self.mednext1_stage0_block2 = MedNeXtBlock(feat_size[0], feat_size[0], norm_type=norm_type, kernel_size=3, exp_r=exp_r, do_res=True)
+        self.mednext1_stage0_block1 = MedNeXtBlock(feat_size[0], feat_size[0], 
+                                                   norm_type=norm_type, kernel_size=3, 
+                                                   exp_r=exp_r, do_res=True)
+        self.mednext1_stage0_block2 = MedNeXtBlock(feat_size[0], feat_size[0], 
+                                                   norm_type=norm_type, kernel_size=3, 
+                                                   exp_r=exp_r, do_res=True)
 
         # Stage 1
-        self.mednext1_stage1_block1 = MedNeXtBlock(feat_size[1], feat_size[1], norm_type=norm_type, kernel_size=3, exp_r=exp_r, do_res=True)
-        self.mednext1_stage1_block2 = MedNeXtBlock(feat_size[1], feat_size[1], norm_type=norm_type, kernel_size=3, exp_r=exp_r, do_res=True)
+        self.mednext1_stage1_block1 = MedNeXtBlock(feat_size[1], feat_size[1], 
+                                                   norm_type=norm_type, kernel_size=3, 
+                                                   exp_r=exp_r, do_res=True)
+        self.mednext1_stage1_block2 = MedNeXtBlock(feat_size[1], feat_size[1], 
+                                                   norm_type=norm_type, kernel_size=3, 
+                                                   exp_r=exp_r, do_res=True)
 
         # Stage 2
-        self.mednext1_stage2_block1 = MedNeXtBlock(feat_size[2], feat_size[2], norm_type=norm_type, kernel_size=3, exp_r=exp_r, do_res=True)
-        self.mednext1_stage2_block2 = MedNeXtBlock(feat_size[2], feat_size[2], norm_type=norm_type, kernel_size=3, exp_r=exp_r, do_res=True)
+        self.mednext1_stage2_block1 = MedNeXtBlock(feat_size[2], feat_size[2], 
+                                                   norm_type=norm_type, kernel_size=3, 
+                                                   exp_r=exp_r, do_res=True)
+        self.mednext1_stage2_block2 = MedNeXtBlock(feat_size[2], feat_size[2], 
+                                                   norm_type=norm_type, kernel_size=3, 
+                                                   exp_r=exp_r, do_res=True)
 
         # Stage 3
-        self.mednext1_stage3_block1 = MedNeXtBlock(feat_size[3], feat_size[3], norm_type=norm_type, kernel_size=3, exp_r=exp_r, do_res=True)
-        self.mednext1_stage3_block2 = MedNeXtBlock(feat_size[3], feat_size[3], norm_type=norm_type, kernel_size=3, exp_r=exp_r, do_res=True)
+        self.mednext1_stage3_block1 = MedNeXtBlock(feat_size[3], feat_size[3], 
+                                                   norm_type=norm_type, kernel_size=3, 
+                                                   exp_r=exp_r, do_res=True)
+        self.mednext1_stage3_block2 = MedNeXtBlock(feat_size[3], feat_size[3], 
+                                                   norm_type=norm_type, kernel_size=3, 
+                                                   exp_r=exp_r, do_res=True)
 
-        # === MedNeXt Encoder #2: Processes input WITH downsampling ===
+        # MedNeXt Encoder 2 – Processes input w/ downsampling
         # Stem
         self.stem = nn.Sequential(
             nn.Conv3d(in_chans, feat_size[0], kernel_size=7, stride=2, padding=3),
@@ -317,36 +330,58 @@ class SSC_UNet(nn.Module):
         )
 
         # Stage 0 (with downsampling to stage 1)
-        self.mednext2_stage0_block1 = MedNeXtBlock(feat_size[0], feat_size[0], norm_type=norm_type, kernel_size=3, exp_r=exp_r, do_res=True)
-        self.mednext2_stage0_block2 = MedNeXtBlock(feat_size[0], feat_size[0], norm_type=norm_type, kernel_size=3, exp_r=exp_r, do_res=True)
-        self.mednext2_down0 = MedNeXtDownBlock(feat_size[0], feat_size[1], exp_r=exp_r, kernel_size=3, norm_type=norm_type)
+        self.mednext2_stage0_block1 = MedNeXtBlock(feat_size[0], feat_size[0],
+                                                    norm_type=norm_type, kernel_size=3,
+                                                    exp_r=exp_r, do_res=True)
+        self.mednext2_stage0_block2 = MedNeXtBlock(feat_size[0], feat_size[0],
+                                                    norm_type=norm_type, kernel_size=3,
+                                                    exp_r=exp_r, do_res=True)
+        self.mednext2_down0 = MedNeXtDownBlock(feat_size[0], feat_size[1],
+                                                exp_r=exp_r, kernel_size=3,
+                                                norm_type=norm_type)
 
         # Stage 1 (with downsampling to stage 2)
-        self.mednext2_stage1_block1 = MedNeXtBlock(feat_size[1], feat_size[1], norm_type=norm_type, kernel_size=3, exp_r=exp_r, do_res=True)
-        self.mednext2_stage1_block2 = MedNeXtBlock(feat_size[1], feat_size[1], norm_type=norm_type, kernel_size=3, exp_r=exp_r, do_res=True)
-        self.mednext2_down1 = MedNeXtDownBlock(feat_size[1], feat_size[2], exp_r=exp_r, kernel_size=3, norm_type=norm_type)
+        self.mednext2_stage1_block1 = MedNeXtBlock(feat_size[1], feat_size[1],
+                                                    norm_type=norm_type, kernel_size=3,
+                                                    exp_r=exp_r, do_res=True)
+        self.mednext2_stage1_block2 = MedNeXtBlock(feat_size[1], feat_size[1],
+                                                    norm_type=norm_type, kernel_size=3,
+                                                    exp_r=exp_r, do_res=True)
+        self.mednext2_down1 = MedNeXtDownBlock(feat_size[1], feat_size[2],
+                                                exp_r=exp_r, kernel_size=3,
+                                                norm_type=norm_type)
 
         # Stage 2 (with downsampling to stage 3)
-        self.mednext2_stage2_block1 = MedNeXtBlock(feat_size[2], feat_size[2], norm_type=norm_type, kernel_size=3, exp_r=exp_r, do_res=True)
-        self.mednext2_stage2_block2 = MedNeXtBlock(feat_size[2], feat_size[2], norm_type=norm_type, kernel_size=3, exp_r=exp_r, do_res=True)
-        self.mednext2_down2 = MedNeXtDownBlock(feat_size[2], feat_size[3], exp_r=exp_r, kernel_size=3, norm_type=norm_type)
+        self.mednext2_stage2_block1 = MedNeXtBlock(feat_size[2], feat_size[2],
+                                                    norm_type=norm_type, kernel_size=3,
+                                                    exp_r=exp_r, do_res=True)
+        self.mednext2_stage2_block2 = MedNeXtBlock(feat_size[2], feat_size[2],
+                                                    norm_type=norm_type, kernel_size=3,
+                                                    exp_r=exp_r, do_res=True)
+        self.mednext2_down2 = MedNeXtDownBlock(feat_size[2], feat_size[3],
+                                                exp_r=exp_r, kernel_size=3,
+                                                norm_type=norm_type)
 
         # Stage 3 (no downsampling)
-        self.mednext2_stage3_block1 = MedNeXtBlock(feat_size[3], feat_size[3], norm_type=norm_type, kernel_size=3, exp_r=exp_r, do_res=True)
-        self.mednext2_stage3_block2 = MedNeXtBlock(feat_size[3], feat_size[3], norm_type=norm_type, kernel_size=3, exp_r=exp_r, do_res=True)
+        self.mednext2_stage3_block1 = MedNeXtBlock(feat_size[3], feat_size[3],
+                                                    norm_type=norm_type, kernel_size=3,
+                                                    exp_r=exp_r, do_res=True)
+        self.mednext2_stage3_block2 = MedNeXtBlock(feat_size[3], feat_size[3],
+                                                    norm_type=norm_type, kernel_size=3,
+                                                    exp_r=exp_r, do_res=True)
 
-        # === Fusion Projection Layers ===
+        # Fusion Projection Layers 
         self.fusion_proj0 = nn.Conv3d(feat_size[0] * 2, feat_size[0], kernel_size=1)
         self.fusion_proj1 = nn.Conv3d(feat_size[1] * 2, feat_size[1], kernel_size=1)
         self.fusion_proj2 = nn.Conv3d(feat_size[2] * 2, feat_size[2], kernel_size=1)
         self.fusion_proj3 = nn.Conv3d(feat_size[3] * 2, feat_size[3], kernel_size=1)
 
-        # === MedNeXt Decoder ===
+        # MedNeXt Decoder
         # Bottleneck
         self.bottleneck = MedNeXtBlock(feat_size[3], feat_size[3], norm_type=norm_type, kernel_size=3, exp_r=exp_r, do_res=False)
 
         # Decoder Stage 3 -> 2
-        # FIX: The upsampling block should take current channels and output target channels
+        # 
         self.decoder3_up = nn.Sequential(
             nn.ConvTranspose3d(feat_size[3], feat_size[2], kernel_size=2, stride=2),
             nn.InstanceNorm3d(feat_size[2])
@@ -377,7 +412,7 @@ class SSC_UNet(nn.Module):
         self.final_block1 = MedNeXtBlock(feat_size[0], feat_size[0], norm_type=norm_type, kernel_size=3, exp_r=exp_r, do_res=True)
         self.final_block2 = MedNeXtBlock(feat_size[0], feat_size[0], norm_type=norm_type, kernel_size=3, exp_r=exp_r, do_res=True)
 
-        # === Output ===
+        # Output 
         self.out = OutBlock(feat_size[0], out_chans)
 
         # === Deep Supervision ===
@@ -388,12 +423,10 @@ class SSC_UNet(nn.Module):
 
     def forward(self, x_in):
         ensure_mednext_norms(self, norm_type=self.norm_type)
-        # fix_groupnorm_for_concatenated_features(self)
-        # === Step 1: Mamba encoder extracts features ===
-        mamba_features = self.mamba_encoder(x_in)  # 4 feature maps
+   
+        mamba_features = self.mamba_encoder(x_in) 
         mamba_feat0, mamba_feat1, mamba_feat2, mamba_feat3 = mamba_features
 
-        # === Step 2: MedNeXt Encoder #1 - processes Mamba features (NO downsampling) ===
         # Stage 0
         mednext1_feat0 = self.mednext1_stage0_block1(mamba_feat0)
         mednext1_feat0 = self.mednext1_stage0_block2(mednext1_feat0)
@@ -410,7 +443,6 @@ class SSC_UNet(nn.Module):
         mednext1_feat3 = self.mednext1_stage3_block1(mamba_feat3)
         mednext1_feat3 = self.mednext1_stage3_block2(mednext1_feat3)
 
-        # === Step 3: MedNeXt Encoder #2 - processes input (WITH downsampling) ===
         x = self.stem(x_in)
 
         # Stage 0
@@ -436,19 +468,18 @@ class SSC_UNet(nn.Module):
         x = self.mednext2_stage3_block2(x)
         mednext2_feat3 = x
 
-        # === Step 4: Concatenate and project features from both MedNeXt encoders ===
+        # Fusion
         fused_feat0 = self.fusion_proj0(torch.cat([mednext1_feat0, mednext2_feat0], dim=1))
         fused_feat1 = self.fusion_proj1(torch.cat([mednext1_feat1, mednext2_feat1], dim=1))
         fused_feat2 = self.fusion_proj2(torch.cat([mednext1_feat2, mednext2_feat2], dim=1))
         fused_feat3 = self.fusion_proj3(torch.cat([mednext1_feat3, mednext2_feat3], dim=1))
 
-        # === Step 5: MedNeXt Decoder ===
         # Bottleneck
         x = self.bottleneck(fused_feat3)
 
         # Decoder 3 -> 2
         x = self.decoder3_up(x)
-        # FIX: Skip connection should use fused_feat2 directly since it already has feat_size[2] channels
+
         skip = self.decoder3_skip_proj(fused_feat2)
         x = x + skip
         x = self.decoder3_block1(x)
@@ -475,13 +506,13 @@ class SSC_UNet(nn.Module):
         x = self.final_block1(x)
         x = self.final_block2(x)
 
-        # === Step 6: Output ===
+        # Output
         main_output = self.out(x)
 
         if self.deep_supervision:
             ds1 = self.ds_out1(dec_feat1)
             ds2 = self.ds_out2(dec_feat2)
-            ds3 = self.ds_out3(fused_feat3)  # Use fused_feat3 directly for deep supervision
+            ds3 = self.ds_out3(fused_feat3)  
             return (main_output, ds1, ds2, ds3)
 
         return main_output
