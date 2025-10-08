@@ -11,7 +11,7 @@ import causal_conv1d_cuda
 import selective_scan_cuda
 
 
-"""class SelectiveScanFn(torch.autograd.Function):
+class SelectiveScanFn(torch.autograd.Function):
 
     @staticmethod
     def forward(ctx, u, delta, A, B, C, D=None, z=None, delta_bias=None, delta_softplus=False,
@@ -44,8 +44,9 @@ import selective_scan_cuda
         else:
             ctx.save_for_backward(u, delta, A, B, C, D, z, delta_bias, x, out)
             out_z = rest[0]
-            return out_z if not return_last_state else (out_z, last_state)"""
+            return out_z if not return_last_state else (out_z, last_state)
         
+        '''
 class SelectiveScanFn(torch.autograd.Function):
 
     @staticmethod
@@ -71,7 +72,6 @@ class SelectiveScanFn(torch.autograd.Function):
             C = rearrange(C, "b dstate l -> b 1 dstate l")
             ctx.squeeze_C = True
 
-        # ✅ ADD THIS FIX HERE — before CUDA call
         args = [t.contiguous() if (t is not None and t.device.type == "cuda") else t
                 for t in (u, delta, A, B, C, D, z)]
         u, delta, A, B, C, D, z = args
@@ -90,7 +90,7 @@ class SelectiveScanFn(torch.autograd.Function):
             ctx.save_for_backward(u, delta, A, B, C, D, z, delta_bias, x, out)
             out_z = rest[0]
             return out_z if not return_last_state else (out_z, last_state)
-
+'''
 
     @staticmethod
     def backward(ctx, dout, *args):
