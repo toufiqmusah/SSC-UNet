@@ -36,8 +36,6 @@ class nnUNetTrainer_SegMamba(nnUNetTrainer):
         )
         return model
     
-'''    
-    
     def _get_base_model(self):
         mod = self.network.module if self.is_ddp else self.network
         if isinstance(mod, OptimizedModule):
@@ -108,5 +106,4 @@ class nnUNetTrainer_SegMamba(nnUNetTrainer):
         finally:
             mod.enable_deep_supervision = original_deep_supervision
         return result
- 
-'''
+
