@@ -127,7 +127,6 @@ class GSC(nn.Module):
         
         return x + x_residual
 
-
 class MambaEncoder(nn.Module):
     def __init__(self, in_chans=1, depths=[2, 2, 2, 2], dims=[48, 96, 192, 384],
                  drop_path_rate=0., layer_scale_init_value=1e-6, out_indices=[0, 1, 2, 3]):
@@ -204,7 +203,7 @@ class SegMamba(nn.Module):
         conv_block: bool = True,
         res_block: bool = True,
         spatial_dims=3,
-        do_deep_supervision: bool = True,
+        enable_deep_supervision: bool = True,
     ) -> None:
         super().__init__()
 
@@ -215,7 +214,7 @@ class SegMamba(nn.Module):
         self.drop_path_rate = drop_path_rate
         self.feat_size = feat_size
         self.layer_scale_init_value = layer_scale_init_value
-        self.deep_supervision = do_deep_supervision
+        self.enable_deep_supervision = enable_deep_supervision
 
         self.spatial_dims = spatial_dims
         self.vit = MambaEncoder(in_chans, 
@@ -320,7 +319,7 @@ class SegMamba(nn.Module):
         self.out_main_seg = UnetOutBlock(spatial_dims=spatial_dims, in_channels=self.feat_size[0], out_channels=self.out_chans)
 
         # Deep supervision blocks
-        if self.deep_supervision:
+        if self.enable_deep_supervision:
             self.ds_seg_from_dec0 = UnetOutBlock(spatial_dims=spatial_dims, in_channels=self.feat_size[0], out_channels=self.out_chans)
             self.ds_seg_from_dec1 = UnetOutBlock(spatial_dims=spatial_dims, in_channels=self.feat_size[1], out_channels=self.out_chans)
             self.ds_seg_from_dec2 = UnetOutBlock(spatial_dims=spatial_dims, in_channels=self.feat_size[2], out_channels=self.out_chans)
@@ -346,7 +345,7 @@ class SegMamba(nn.Module):
         final_features = self.decoder1(dec_features_d0)
         main_segmentation = self.out_main_seg(final_features)
 
-        if self.deep_supervision: # and self.training:
+        if self.enable_deep_supervision: # and self.training:
             
             # Only return outputs that match the expected nnUNet pattern
             # nnUNet typically expects: [main_output, half_res_output, quarter_res_output, ...]
