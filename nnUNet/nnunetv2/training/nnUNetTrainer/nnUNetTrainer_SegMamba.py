@@ -32,7 +32,7 @@ class nnUNetTrainer_SegMamba(nnUNetTrainer):
             out_chans=num_output_channels,
             depths=segmamba_depths,
             feat_size=segmamba_feat_size,
-            enable_deep_supervision=enable_deep_supervision 
+            do_deep_supervision=enable_deep_supervision 
         )
         return model
     
@@ -44,14 +44,14 @@ class nnUNetTrainer_SegMamba(nnUNetTrainer):
 
     def set_deep_supervision_enabled(self, enabled: bool):
         mod = self._get_base_model()
-        mod.enable_deep_supervision = enabled
+        mod.do_deep_supervision = enabled
 
     def save_checkpoint(self, filename: str) -> None:
         """Override to save model without deep supervision weights for inference compatibility."""
         if self.local_rank == 0:
             if not self.disable_checkpointing:
                 mod = self._get_base_model()
-                original_deep_supervision = getattr(mod, 'enable_deep_supervision', True)
+                original_deep_supervision = getattr(mod, 'do_deep_supervision', True)
                 
                 try:
                     state_dict = mod.state_dict()
@@ -77,7 +77,7 @@ class nnUNetTrainer_SegMamba(nnUNetTrainer):
                     }
                     torch.save(checkpoint, filename)
                 finally:
-                    mod.enable_deep_supervision = original_deep_supervision
+                    mod.do_deep_supervision = original_deep_supervision
             else:
                 self.print_to_log_file('No checkpoint written, checkpointing is disabled')
 
@@ -85,25 +85,24 @@ class nnUNetTrainer_SegMamba(nnUNetTrainer):
         mod = self._get_base_model()
         original_forward = mod.forward
         mod.forward = lambda x: original_forward(x)[0]
-
-        original_deep_supervision = getattr(mod, 'enable_deep_supervision', True)
-        mod.enable_deep_supervision = False
-
+        
+        original_deep_supervision = getattr(mod, 'do_deep_supervision', True)
+        mod.do_deep_supervision = False
+        
         try:
             result = super().perform_actual_validation(save_probabilities)
         finally:
             mod.forward = original_forward
-            mod.enable_deep_supervision = original_deep_supervision
+            mod.do_deep_supervision = original_deep_supervision
             
         return result
 
     def validation_step(self, batch: dict) -> dict:
         mod = self._get_base_model()
-        original_deep_supervision = getattr(mod, 'enable_deep_supervision', True)
-        mod.enable_deep_supervision = False
+        original_deep_supervision = getattr(mod, 'do_deep_supervision', True)
+        mod.do_deep_supervision = False
         try:
             result = super().validation_step(batch)
         finally:
-            mod.enable_deep_supervision = original_deep_supervision
+            mod.do_deep_supervision = original_deep_supervision
         return result
-

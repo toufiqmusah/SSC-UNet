@@ -1,7 +1,16 @@
 # Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
-
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 from __future__ import annotations
+
+from functools import partial
 
 import torch 
 import torch.nn as nn
@@ -17,7 +26,6 @@ class LayerNorm(nn.Module):
     shape (batch_size, height, width, channels) while channels_first corresponds to inputs
     with shape (batch_size, channels, height, width).
     """
-
     def __init__(self, normalized_shape, eps=1e-6, data_format="channels_last"):
         super().__init__()
         self.weight = nn.Parameter(torch.ones(normalized_shape))
@@ -39,14 +47,13 @@ class LayerNorm(nn.Module):
 
             return x
 
-
 class MambaLayer(nn.Module):
     def __init__(self, dim, d_state = 16, d_conv = 4, expand = 2, num_slices=None):
         super().__init__()
         self.dim = dim
         self.norm = nn.LayerNorm(dim)
         self.mamba = Mamba(
-                d_model=dim,      # Model dimension d_model
+                d_model=dim, # Model dimension d_model
                 d_state=d_state,  # SSM state expansion factor
                 d_conv=d_conv,    # Local convolution width
                 expand=expand,    # Block expansion factor
@@ -69,7 +76,6 @@ class MambaLayer(nn.Module):
         
         return out
     
-
 class MlpChannel(nn.Module):
     def __init__(self,hidden_size, mlp_dim, ):
         super().__init__()
@@ -82,7 +88,6 @@ class MlpChannel(nn.Module):
         x = self.act(x)
         x = self.fc2(x)
         return x
-
 
 class GSC(nn.Module):
     def __init__(self, in_channles) -> None:
@@ -189,6 +194,7 @@ class MambaEncoder(nn.Module):
         return x
 
 
+
 class SegMamba(nn.Module):
     def __init__(
         self,
@@ -203,7 +209,7 @@ class SegMamba(nn.Module):
         conv_block: bool = True,
         res_block: bool = True,
         spatial_dims=3,
-        enable_deep_supervision: bool = True,
+        do_deep_supervision: bool = True,
     ) -> None:
         super().__init__()
 
@@ -214,7 +220,7 @@ class SegMamba(nn.Module):
         self.drop_path_rate = drop_path_rate
         self.feat_size = feat_size
         self.layer_scale_init_value = layer_scale_init_value
-        self.enable_deep_supervision = enable_deep_supervision
+        self.deep_supervision = do_deep_supervision
 
         self.spatial_dims = spatial_dims
         self.vit = MambaEncoder(in_chans, 
@@ -319,7 +325,7 @@ class SegMamba(nn.Module):
         self.out_main_seg = UnetOutBlock(spatial_dims=spatial_dims, in_channels=self.feat_size[0], out_channels=self.out_chans)
 
         # Deep supervision blocks
-        if self.enable_deep_supervision:
+        if self.deep_supervision:
             self.ds_seg_from_dec0 = UnetOutBlock(spatial_dims=spatial_dims, in_channels=self.feat_size[0], out_channels=self.out_chans)
             self.ds_seg_from_dec1 = UnetOutBlock(spatial_dims=spatial_dims, in_channels=self.feat_size[1], out_channels=self.out_chans)
             self.ds_seg_from_dec2 = UnetOutBlock(spatial_dims=spatial_dims, in_channels=self.feat_size[2], out_channels=self.out_chans)
@@ -345,8 +351,7 @@ class SegMamba(nn.Module):
         final_features = self.decoder1(dec_features_d0)
         main_segmentation = self.out_main_seg(final_features)
 
-        if self.enable_deep_supervision: # and self.training:
-            
+        if self.deep_supervision: # and self.training:
             # Only return outputs that match the expected nnUNet pattern
             # nnUNet typically expects: [main_output, half_res_output, quarter_res_output, ...]
             
