@@ -70,7 +70,7 @@ class SwinUNETR(nn.Module):
         use_checkpoint: bool = False,
         spatial_dims: int = 3,
         downsample: str | nn.Module = "merging",
-        use_v2: bool = False,
+        use_v2: bool = True,
         do_deep_supervision: bool = False,
     ) -> None:
         """
