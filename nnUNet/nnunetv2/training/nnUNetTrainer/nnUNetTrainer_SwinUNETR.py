@@ -6,7 +6,7 @@ from torch._dynamo import OptimizedModule
 from nnunetv2.nets.swinunetr import SwinUNETR
 from nnunetv2.training.nnUNetTrainer.nnUNetTrainer import nnUNetTrainer
 
-class nnUNetTrainer_SegMamba(nnUNetTrainer):
+class nnUNetTrainer_SwinUNETR(nnUNetTrainer):
     def __init__(self, plans: dict, configuration: str, fold: int, dataset_json: dict,
                  device: torch.device = torch.device('cuda')):
         super().__init__(plans=plans, configuration=configuration, fold=fold, dataset_json=dataset_json, 
