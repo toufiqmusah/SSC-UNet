@@ -1,6 +1,6 @@
 # requirements.txt
--e mamba/
--e causal-conv1d/
+# -e mamba/
+# -e causal-conv1d/
 -e nnUNet/
 -e mednext/
 monai
