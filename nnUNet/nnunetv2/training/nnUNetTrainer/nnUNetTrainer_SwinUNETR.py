@@ -1,11 +1,72 @@
 # nnUNetTrainer_SwinUNETR.py
 
 import torch
+import torch.nn as nn
 from typing import Union, List, Tuple
 from torch._dynamo import OptimizedModule
 from nnunetv2.training.nnUNetTrainer.variants.network_architecture.nnUNetTrainerNoDeepSupervision import nnUNetTrainerNoDeepSupervision
 from monai.networks.nets import SwinUNETR
 import numpy as np
+
+
+class SwinUNETRPaddingWrapper(nn.Module):
+    """
+    Wrapper for SwinUNETR that handles padding to ensure spatial dimensions are divisible by 32.
+    SwinUNETR requires all spatial dimensions to be divisible by 2^5 = 32.
+    """
+    def __init__(self, model: SwinUNETR):
+        super().__init__()
+        self.model = model
+        self.padding_dims = None
+    
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass with automatic padding.
+        
+        Args:
+            x: Input tensor of shape (B, C, H, W, D) for 3D
+        
+        Returns:
+            Output tensor with padding removed
+        """
+        # Get original shape
+        original_shape = x.shape
+        
+        # Calculate padding needed for each spatial dimension
+        # Spatial dimensions start at index 2
+        padding = []
+        self.padding_dims = []
+        
+        for i in range(2, len(original_shape)):
+            spatial_size = original_shape[i]
+            # Round up to nearest multiple of 32
+            padded_size = int(np.ceil(spatial_size / 32) * 32)
+            pad_amount = padded_size - spatial_size
+            self.padding_dims.append((spatial_size, padded_size, pad_amount))
+            padding.append(pad_amount)
+        
+        # Apply padding if needed
+        if any(p > 0 for p in padding):
+            # torch.nn.functional.pad expects padding in reverse order (last dim first)
+            pad_tuple = []
+            for p in reversed(padding):
+                pad_tuple.extend([0, p])
+            x_padded = torch.nn.functional.pad(x, pad_tuple)
+        else:
+            x_padded = x
+        
+        # Forward pass through SwinUNETR
+        output = self.model(x_padded)
+        
+        # Remove padding from output
+        if self.padding_dims:
+            slices = [slice(None), slice(None)]  # Keep batch and channel dimensions
+            for original_size, _, _ in self.padding_dims:
+                slices.append(slice(None, original_size))
+            output = output[tuple(slices)]
+        
+        return output
+
 
 
 class nnUNetTrainer_SwinUNETR(nnUNetTrainerNoDeepSupervision):
@@ -28,30 +89,27 @@ class nnUNetTrainer_SwinUNETR(nnUNetTrainerNoDeepSupervision):
             num_output_channels: int,
             enable_deep_supervision: bool = False) -> torch.nn.Module:
         
-        # Get patch size from arch_init_kwargs if available
-        # nnUNet passes the patch size in the configuration
-        patch_size = arch_init_kwargs.get('patch_size', [96, 96, 96])
-        
-        # Ensure patch size is divisible by 32 (2^5) for SwinUNETR
-        # Round up to nearest multiple of 32
-        adjusted_patch_size = [int(np.ceil(p / 32) * 32) for p in patch_size]
-        
-        print(f"Original patch size: {patch_size}")
-        print(f"Adjusted patch size for SwinUNETR: {adjusted_patch_size}")
-        
+        # Create the base SwinUNETR model
         model = SwinUNETR(
-            # img_size=tuple(adjusted_patch_size),
             in_channels=num_input_channels,
             out_channels=num_output_channels,
-            # feature_size=48,
             use_v2=True,
         )
-        return model
+        
+        # Wrap it with padding handler
+        wrapped_model = SwinUNETRPaddingWrapper(model)
+        return wrapped_model
 
     def _get_base_model(self):
+        """Get the actual SwinUNETR model, handling wrapper and DDP."""
         mod = self.network.module if self.is_ddp else self.network
         if isinstance(mod, OptimizedModule):
             mod = mod._orig_mod
+        
+        # Unwrap the padding wrapper if present
+        if isinstance(mod, SwinUNETRPaddingWrapper):
+            mod = mod.model
+        
         return mod
 
     def set_deep_supervision_enabled(self, enabled: bool):
