@@ -1,4 +1,4 @@
-# nnUNetTrainer_SegMamba.py
+'''# nnUNetTrainer_SegMamba.py
 
 import torch
 from typing import Union, List, Tuple
@@ -106,3 +106,4 @@ class nnUNetTrainer_SegMamba(nnUNetTrainer):
         finally:
             mod.do_deep_supervision = original_deep_supervision
         return result
+'''
