@@ -40,7 +40,7 @@ class nnUNetTrainer_SwinUNETR(nnUNetTrainerNoDeepSupervision):
         print(f"Adjusted patch size for SwinUNETR: {adjusted_patch_size}")
         
         model = SwinUNETR(
-            img_size=tuple(adjusted_patch_size),
+            # img_size=tuple(adjusted_patch_size),
             in_channels=num_input_channels,
             out_channels=num_output_channels,
             # feature_size=48,
