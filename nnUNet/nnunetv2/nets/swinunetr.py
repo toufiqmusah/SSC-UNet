@@ -57,10 +57,16 @@ class SwinUNETRv(nn.Module):
         self.feat_size = feat_size
         self.layer_scale_init_value = layer_scale_init_value
         self.deep_supervision = do_deep_supervision
-
         self.spatial_dims = spatial_dims
         
         self.vit = SwinVITBlock(in_chans, out_chans)
+        
+        # NEW: Add projection layers to match Swin-ViT output channels to encoder input channels
+        # Swin-ViT outputs [24, 48, 96, 192] but we need [48, 96, 192, 384]
+        self.proj0 = nn.Conv3d(24, feat_size[0], kernel_size=1) if spatial_dims == 3 else nn.Conv2d(24, feat_size[0], kernel_size=1)
+        self.proj1 = nn.Conv3d(48, feat_size[1], kernel_size=1) if spatial_dims == 3 else nn.Conv2d(48, feat_size[1], kernel_size=1)
+        self.proj2 = nn.Conv3d(96, feat_size[2], kernel_size=1) if spatial_dims == 3 else nn.Conv2d(96, feat_size[2], kernel_size=1)
+        self.proj3 = nn.Conv3d(192, feat_size[3], kernel_size=1) if spatial_dims == 3 else nn.Conv2d(192, feat_size[3], kernel_size=1)
         
         self.encoder1 = UnetrBasicBlock(
             spatial_dims=spatial_dims,
@@ -129,8 +135,8 @@ class SwinUNETRv(nn.Module):
         )
         self.decoder3 = UnetrUpBlock(
             spatial_dims=spatial_dims,
-            in_channels=self.feat_size[2], # 192
-            out_channels=self.feat_size[1], # 96
+            in_channels=self.feat_size[2],
+            out_channels=self.feat_size[1],
             kernel_size=3,
             upsample_kernel_size=2,
             norm_name=norm_name,
@@ -138,17 +144,17 @@ class SwinUNETRv(nn.Module):
         )
         self.decoder2 = UnetrUpBlock(
             spatial_dims=spatial_dims,
-            in_channels=self.feat_size[1], # 96
-            out_channels=self.feat_size[0], # 48
+            in_channels=self.feat_size[1],
+            out_channels=self.feat_size[0],
             kernel_size=3,
             upsample_kernel_size=2,
             norm_name=norm_name,
             res_block=res_block,
         )
-        self.decoder1 = UnetrBasicBlock( 
+        self.decoder1 = UnetrBasicBlock(
             spatial_dims=spatial_dims,
-            in_channels=self.feat_size[0], # 48
-            out_channels=self.feat_size[0], # 48
+            in_channels=self.feat_size[0],
+            out_channels=self.feat_size[0],
             kernel_size=3,
             stride=1,
             norm_name=norm_name,
@@ -157,7 +163,6 @@ class SwinUNETRv(nn.Module):
 
         self.out_main_seg = UnetOutBlock(spatial_dims=spatial_dims, in_channels=self.feat_size[0], out_channels=self.out_chans)
 
-        # Deep supervision blocks
         if self.deep_supervision:
             self.ds_seg_from_dec0 = UnetOutBlock(spatial_dims=spatial_dims, in_channels=self.feat_size[0], out_channels=self.out_chans)
             self.ds_seg_from_dec1 = UnetOutBlock(spatial_dims=spatial_dims, in_channels=self.feat_size[1], out_channels=self.out_chans)
@@ -167,6 +172,14 @@ class SwinUNETRv(nn.Module):
     def forward(self, x_in):
         mamba_features = self.vit(x_in)
 
+        # Project Swin-ViT features to match encoder channel expectations
+        mamba_features = [
+            self.proj0(mamba_features[0]),
+            self.proj1(mamba_features[1]),
+            self.proj2(mamba_features[2]),
+            self.proj3(mamba_features[3])
+        ]
+
         skip_conn1 = self.encoder1(x_in)
         skip_conn2 = self.encoder2(mamba_features[0])
         skip_conn3 = self.encoder3(mamba_features[1])
@@ -174,25 +187,18 @@ class SwinUNETRv(nn.Module):
 
         bottleneck_features = self.encoder5(mamba_features[3])
 
-        # Decoder path
         dec_features_d3 = self.decoder5(bottleneck_features, skip_conn4)
         dec_features_d2 = self.decoder4(dec_features_d3, skip_conn3)
         dec_features_d1 = self.decoder3(dec_features_d2, skip_conn2)
         dec_features_d0 = self.decoder2(dec_features_d1, skip_conn1)
 
-        # Final processing
         final_features = self.decoder1(dec_features_d0)
         main_segmentation = self.out_main_seg(final_features)
 
-        if self.deep_supervision: # and self.training:
-            # Only return outputs that match the expected nnUNet pattern
-            # nnUNet typically expects: [main_output, half_res_output, quarter_res_output, ...]
-            
-            ds_seg2 = self.ds_seg_from_dec1(dec_features_d1)  # Half res: [64, 80, 56]
-            ds_seg3 = self.ds_seg_from_dec2(dec_features_d2)  # Quarter res: [32, 40, 28]
-            ds_seg4 = self.ds_seg_from_dec3(dec_features_d3)  # Eighth res: [16, 20, 14]
-
-            # Return tuple: (main_full_res, half_res, quarter_res, eighth_res)
+        if self.deep_supervision:
+            ds_seg2 = self.ds_seg_from_dec1(dec_features_d1)
+            ds_seg3 = self.ds_seg_from_dec2(dec_features_d2)
+            ds_seg4 = self.ds_seg_from_dec3(dec_features_d3)
             return (main_segmentation, ds_seg2, ds_seg3, ds_seg4)
         else:
             return main_segmentation
