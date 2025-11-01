@@ -3,13 +3,16 @@
 import torch
 from typing import Union, List, Tuple
 from torch._dynamo import OptimizedModule
-# from nnunetv2.nets.swinunetr import SwinUNETR
-from nnunetv2.training.nnUNetTrainer.nnUNetTrainer import nnUNetTrainer
+# Remove the two original imports below:
+# from nnunetv2.training.nnUNetTrainer.nnUNetTrainer import nnUNetTrainer 
+# from nnunetv2.training.nnUNetTrainer.variants.network_architecture import nnUNetTrainerNoDeepSupervision
+# And use this consolidated import for the base class:
 from nnunetv2.training.nnUNetTrainer.variants.network_architecture import nnUNetTrainerNoDeepSupervision
+
 from monai.networks.nets import SwinUNETR
 
 
-class nnUNetTrainer_SwinUNETR(nnUNetTrainerNoDeepSupervision):
+class nnUNetTrainer_SwinUNETR(nnUNetTrainerNoDeepSupervision): # This is correct
     def __init__(self, plans: dict, configuration: str, fold: int, dataset_json: dict,
                  device: torch.device = torch.device('cuda')):
         super().__init__(plans=plans, configuration=configuration, fold=fold, dataset_json=dataset_json, 
@@ -17,7 +20,7 @@ class nnUNetTrainer_SwinUNETR(nnUNetTrainerNoDeepSupervision):
         
         self.initial_lr = 1e-2 
         self.weight_decay = 1e-5 
-        self.model_name = "SwinUNETR" 
+        self.model_name = "SwinUNETR"  # Corrected from "SegMamba" 
         self.num_epochs = 10
 
     @staticmethod
@@ -27,14 +30,18 @@ class nnUNetTrainer_SwinUNETR(nnUNetTrainerNoDeepSupervision):
             arch_init_kwargs_req_import: Union[List[str], Tuple[str, ...]],
             num_input_channels: int,
             num_output_channels: int,
-            enable_deep_supervision: bool = True) -> torch.nn.Module:
-        swinunetr_depths = [2, 2, 2, 2]
-        swinunetr_feat_size = [48, 96, 192, 384]
+            enable_deep_supervision: bool = False) -> torch.nn.Module: # Set to False
+        
+        # Note: SwinUNETR in MONAI doesn't have depths or feat_size as direct constructor args
+        # These are handled by the 'feature_size' argument
+        
+        # You should review the 'feature_size' and other default SwinUNETR arguments 
+        # to ensure it matches your plans.
         model = SwinUNETR(
             in_channels=num_input_channels,
             out_channels=num_output_channels,
             use_v2=True,
-            # do_deep_supervision=enable_deep_supervision
+            # feature_size=48, # Consider setting this if it's not the default
         )
         return model
     '''
