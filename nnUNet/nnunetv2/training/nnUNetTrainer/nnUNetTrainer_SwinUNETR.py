@@ -14,7 +14,7 @@ class nnUNetTrainer_SwinUNETR(nnUNetTrainer):
         
         self.initial_lr = 1e-2 
         self.weight_decay = 1e-5 
-        self.model_name = "SegMamba" 
+        self.model_name = "SwinUNETR" 
         self.num_epochs = 10
 
     @staticmethod
