@@ -261,12 +261,11 @@ class SwinUNETR(nn.Module):
 
         self.out = UnetOutBlock(spatial_dims=spatial_dims, in_channels=feature_size, out_channels=out_channels)
 
-        # Deep supervision blocks
-        if self.deep_supervision:
-            self.ds_seg_from_dec0 = UnetOutBlock(spatial_dims=spatial_dims, in_channels=feature_size, out_channels=out_channels)
-            self.ds_seg_from_dec1 = UnetOutBlock(spatial_dims=spatial_dims, in_channels=feature_size * 2, out_channels=out_channels)
-            self.ds_seg_from_dec2 = UnetOutBlock(spatial_dims=spatial_dims, in_channels=feature_size * 4, out_channels=out_channels)
-            self.ds_seg_from_dec3 = UnetOutBlock(spatial_dims=spatial_dims, in_channels=feature_size * 8, out_channels=out_channels)
+        # Deep supervision blocks (always created for torch.compile compatibility)
+        self.ds_seg_from_dec0 = UnetOutBlock(spatial_dims=spatial_dims, in_channels=feature_size, out_channels=out_channels)
+        self.ds_seg_from_dec1 = UnetOutBlock(spatial_dims=spatial_dims, in_channels=feature_size * 2, out_channels=out_channels)
+        self.ds_seg_from_dec2 = UnetOutBlock(spatial_dims=spatial_dims, in_channels=feature_size * 4, out_channels=out_channels)
+        self.ds_seg_from_dec3 = UnetOutBlock(spatial_dims=spatial_dims, in_channels=feature_size * 8, out_channels=out_channels)
 
     def load_from(self, weights):
         layers1_0: BasicLayer = self.swinViT.layers1[0]  # type: ignore[assignment]
