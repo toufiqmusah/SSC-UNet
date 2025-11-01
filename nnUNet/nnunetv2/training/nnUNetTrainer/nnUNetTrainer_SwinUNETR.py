@@ -1,5 +1,3 @@
-# nnUNetTrainer_SegMamba.py
-
 # nnUNetTrainer_SwinUNETR.py
 
 import torch
@@ -7,6 +5,7 @@ from typing import Union, List, Tuple
 from torch._dynamo import OptimizedModule
 from nnunetv2.training.nnUNetTrainer.variants.network_architecture.nnUNetTrainerNoDeepSupervision import nnUNetTrainerNoDeepSupervision
 from monai.networks.nets import SwinUNETR
+import numpy as np
 
 
 class nnUNetTrainer_SwinUNETR(nnUNetTrainerNoDeepSupervision):
@@ -29,10 +28,22 @@ class nnUNetTrainer_SwinUNETR(nnUNetTrainerNoDeepSupervision):
             num_output_channels: int,
             enable_deep_supervision: bool = False) -> torch.nn.Module:
         
+        # Get patch size from arch_init_kwargs if available
+        # nnUNet passes the patch size in the configuration
+        patch_size = arch_init_kwargs.get('patch_size', [96, 96, 96])
+        
+        # Ensure patch size is divisible by 32 (2^5) for SwinUNETR
+        # Round up to nearest multiple of 32
+        adjusted_patch_size = [int(np.ceil(p / 32) * 32) for p in patch_size]
+        
+        print(f"Original patch size: {patch_size}")
+        print(f"Adjusted patch size for SwinUNETR: {adjusted_patch_size}")
+        
         model = SwinUNETR(
+            img_size=tuple(adjusted_patch_size),
             in_channels=num_input_channels,
             out_channels=num_output_channels,
-            feature_size=48,
+            # feature_size=48,
             use_v2=True,
         )
         return model
@@ -55,18 +66,12 @@ class nnUNetTrainer_SwinUNETR(nnUNetTrainerNoDeepSupervision):
         if self.local_rank == 0:
             if not self.disable_checkpointing:
                 mod = self._get_base_model()
-                original_deep_supervision = getattr(mod, 'do_deep_supervision', True)
                 
                 try:
                     state_dict = mod.state_dict()
                     
-                    # CORRECTED filtering logic for SegMamba:
-                    # Remove deep supervision heads ("ds_seg_from_dec...").
-                    # Keep everything else, including the main output ("out_main_seg").
-                    filtered_state_dict = {
-                        k: v for k, v in state_dict.items()
-                        if not k.startswith('ds_seg_from_dec')
-                    }
+                    # SwinUNETR doesn't have deep supervision heads, so just save as-is
+                    filtered_state_dict = state_dict
                     
                     checkpoint = {
                         'network_weights': filtered_state_dict,
@@ -80,33 +85,15 @@ class nnUNetTrainer_SwinUNETR(nnUNetTrainerNoDeepSupervision):
                         'inference_allowed_mirroring_axes': self.inference_allowed_mirroring_axes,
                     }
                     torch.save(checkpoint, filename)
-                finally:
-                    mod.do_deep_supervision = original_deep_supervision
+                except Exception as e:
+                    self.print_to_log_file(f'Failed to save checkpoint: {e}')
             else:
                 self.print_to_log_file('No checkpoint written, checkpointing is disabled')
 
     def perform_actual_validation(self, save_probabilities: bool = False):
-        mod = self._get_base_model()
-        original_forward = mod.forward
-        mod.forward = lambda x: original_forward(x)[0]
-        
-        original_deep_supervision = getattr(mod, 'do_deep_supervision', True)
-        mod.do_deep_supervision = False
-        
-        try:
-            result = super().perform_actual_validation(save_probabilities)
-        finally:
-            mod.forward = original_forward
-            mod.do_deep_supervision = original_deep_supervision
-            
-        return result
+        """Validation doesn't need special handling for SwinUNETR."""
+        return super().perform_actual_validation(save_probabilities)
 
     def validation_step(self, batch: dict) -> dict:
-        mod = self._get_base_model()
-        original_deep_supervision = getattr(mod, 'do_deep_supervision', True)
-        mod.do_deep_supervision = False
-        try:
-            result = super().validation_step(batch)
-        finally:
-            mod.do_deep_supervision = original_deep_supervision
-        return result
+        """Validation step doesn't need special handling for SwinUNETR."""
+        return super().validation_step(batch)
