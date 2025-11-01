@@ -36,7 +36,7 @@ class nnUNetTrainer_SwinUNETR(nnUNetTrainerNoDeepSupervision):
             use_v2=True,
         )
         return model
-    '''
+
     def _get_base_model(self):
         mod = self.network.module if self.is_ddp else self.network
         if isinstance(mod, OptimizedModule):
@@ -44,8 +44,11 @@ class nnUNetTrainer_SwinUNETR(nnUNetTrainerNoDeepSupervision):
         return mod
 
     def set_deep_supervision_enabled(self, enabled: bool):
-        mod = self._get_base_model()
-        mod.do_deep_supervision = enabled
+        """
+        SwinUNETR does not support deep supervision, so this method does nothing.
+        Deep supervision is disabled by default in nnUNetTrainerNoDeepSupervision.
+        """
+        pass
 
     def save_checkpoint(self, filename: str) -> None:
         """Override to save model without deep supervision weights for inference compatibility."""
@@ -107,4 +110,3 @@ class nnUNetTrainer_SwinUNETR(nnUNetTrainerNoDeepSupervision):
         finally:
             mod.do_deep_supervision = original_deep_supervision
         return result
-'''
