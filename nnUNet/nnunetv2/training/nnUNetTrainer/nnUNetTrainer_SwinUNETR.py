@@ -3,10 +3,13 @@
 import torch
 from typing import Union, List, Tuple
 from torch._dynamo import OptimizedModule
-from nnunetv2.nets.swinunetr import SwinUNETR
+# from nnunetv2.nets.swinunetr import SwinUNETR
 from nnunetv2.training.nnUNetTrainer.nnUNetTrainer import nnUNetTrainer
+from nnunetv2.training.nnUNetTrainer.variants.network_architecture import nnUNetTrainerNoDeepSupervision
+from monai.networks.nets import SwinUNETR
 
-class nnUNetTrainer_SwinUNETR(nnUNetTrainer):
+
+class nnUNetTrainer_SwinUNETR(nnUNetTrainerNoDeepSupervision):
     def __init__(self, plans: dict, configuration: str, fold: int, dataset_json: dict,
                  device: torch.device = torch.device('cuda')):
         super().__init__(plans=plans, configuration=configuration, fold=fold, dataset_json=dataset_json, 
@@ -30,10 +33,11 @@ class nnUNetTrainer_SwinUNETR(nnUNetTrainer):
         model = SwinUNETR(
             in_channels=num_input_channels,
             out_channels=num_output_channels,
-            do_deep_supervision=enable_deep_supervision
+            use_v2=True,
+            # do_deep_supervision=enable_deep_supervision
         )
         return model
-    
+    '''
     def _get_base_model(self):
         mod = self.network.module if self.is_ddp else self.network
         if isinstance(mod, OptimizedModule):
@@ -104,3 +108,4 @@ class nnUNetTrainer_SwinUNETR(nnUNetTrainer):
         finally:
             mod.do_deep_supervision = original_deep_supervision
         return result
+'''
