@@ -43,7 +43,7 @@ class nnUNetTrainerSwinUNETR(nnUNetTrainerNoDeepSupervision):
         model = SwinUNETR(
             in_channels=num_input_channels,
             out_channels=num_output_channels,
-            img_size=configuration_manager.patch_size,
+            img_size=configuration_manager.configuration['patch_size'],
             depths=(2, 2, 2, 2),
             num_heads=(3, 6, 12, 24),
             feature_size=48,
@@ -53,7 +53,7 @@ class nnUNetTrainerSwinUNETR(nnUNetTrainerNoDeepSupervision):
             dropout_path_rate=0.0,
             normalize=True,
             use_checkpoint=False,
-            spatial_dims=len(configuration_manager.patch_size),
+            spatial_dims=3,
             downsample="merging",
             use_v2=False,
         )
