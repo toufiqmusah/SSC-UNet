@@ -45,7 +45,7 @@ class nnUNetTrainerSwinUNETR(nnUNetTrainerNoDeepSupervision):
             out_channels=num_output_channels,
             depths=(2, 2, 2, 2),
             num_heads=(3, 6, 6, 12),
-            feature_size=24,
+            feature_size=12,
             norm_name="instance",
             drop_rate=0.0,
             attn_drop_rate=0.0,
