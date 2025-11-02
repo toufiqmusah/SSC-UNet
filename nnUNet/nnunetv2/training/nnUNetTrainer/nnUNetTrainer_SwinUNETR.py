@@ -30,30 +30,32 @@ class nnUNetTrainerSwinUNETR(nnUNetTrainerNoDeepSupervision):
 
     @staticmethod
     def build_network_architecture(plans_manager: PlansManager,
-                                   dataset_json,
-                                   configuration_manager: ConfigurationManager,
-                                   num_output_channels: int,
-                                   enable_deep_supervision: bool = False) -> nn.Module:
+                                dataset_json,
+                                configuration_manager: ConfigurationManager,
+                                num_input_channels: int,
+                                num_output_channels: int,
+                                enable_deep_supervision: bool = False) -> nn.Module:
 
-        label_manager = plans_manager.get_label_manager(dataset_json)
-        num_input_channels = label_manager.num_input_channels
+        # Remove this line since num_input_channels is now passed as a parameter
+        # label_manager = plans_manager.get_label_manager(dataset_json)
+        # num_input_channels = label_manager.num_input_channels
 
         model = SwinUNETR(
             in_channels=num_input_channels,
             out_channels=num_output_channels,
-            img_size = configuration_manager.patch_size,
-            depths = (2, 2, 2, 2),
-            num_heads = (3, 6, 12, 24),
-            feature_size = 48, ##
-            norm_name = "instance",
-            drop_rate = 0.0,
-            attn_drop_rate = 0.0,
-            dropout_path_rate = 0.0,
-            normalize = True,
-            use_checkpoint = False,
-            spatial_dims = len(configuration_manager.patch_size),
-            downsample = "merging",
-            use_v2 = False,
+            img_size=configuration_manager.patch_size,
+            depths=(2, 2, 2, 2),
+            num_heads=(3, 6, 12, 24),
+            feature_size=48,
+            norm_name="instance",
+            drop_rate=0.0,
+            attn_drop_rate=0.0,
+            dropout_path_rate=0.0,
+            normalize=True,
+            use_checkpoint=False,
+            spatial_dims=len(configuration_manager.patch_size),
+            downsample="merging",
+            use_v2=False,
         )
 
         return model
