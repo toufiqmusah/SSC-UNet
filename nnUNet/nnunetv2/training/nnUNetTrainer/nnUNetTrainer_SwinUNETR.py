@@ -43,7 +43,6 @@ class nnUNetTrainerSwinUNETR(nnUNetTrainerNoDeepSupervision):
         model = SwinUNETR(
             in_channels=num_input_channels,
             out_channels=num_output_channels,
-            img_size=128,
             depths=(2, 2, 2, 2),
             num_heads=(3, 6, 12, 24),
             feature_size=48,
