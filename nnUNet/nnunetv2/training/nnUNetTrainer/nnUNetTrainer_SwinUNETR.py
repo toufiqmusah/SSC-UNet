@@ -10,9 +10,9 @@ from torch import nn
 from monai.networks.nets import SwinUNETR
 
 class nnUNetTrainerSwinUNETR(nnUNetTrainerNoDeepSupervision):
-    def __init__(self, plans: dict, configuration: str, fold: int, dataset_json: dict, unpack_dataset: bool = True,
+    def __init__(self, plans: dict, configuration: str, fold: int, dataset_json: dict,
                  device: torch.device = torch.device('cuda')):
-        super().__init__(plans, configuration, fold, dataset_json, unpack_dataset, device)
+        super().__init__(plans, configuration, fold, dataset_json, device=device)
         original_patch_size = self.configuration_manager.patch_size
         new_patch_size = [-1] * len(original_patch_size)
         for i in range(len(original_patch_size)):
@@ -153,9 +153,9 @@ class nnUNetTrainerSwinUNETR(nnUNetTrainerNoDeepSupervision):
 
 
 class nnUNetTrainerSwinUNETR_10epochs(nnUNetTrainerSwinUNETR):
-    def __init__(self, plans: dict, configuration: str, fold: int, dataset_json: dict, unpack_dataset: bool = True,
+    def __init__(self, plans: dict, configuration: str, fold: int, dataset_json: dict,
                  device: torch.device = torch.device('cuda')):
-        super().__init__(plans, configuration, fold, dataset_json, unpack_dataset, device)
+        super().__init__(plans, configuration, fold, dataset_json, device=device)
         self.num_epochs = 10
 
 '''# nnUNetTrainer_SegMamba.py
